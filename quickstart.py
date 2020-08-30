@@ -8,7 +8,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
 # If modifying these scopes, delete the file token.pickle.
-SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly']
+SCOPES = ['https://www.googleapis.com/auth/drive']
 
 def main():
     """Shows basic usage of the Drive v3 API.
@@ -46,15 +46,19 @@ def main():
         print('Files:')
         for item in items:
             print("Downloading file ", str(item['name']), " from Google Drive")
-            print(u'{0} ({1})'.format(item['name'], item['id']))
-            file_id = str(item['id'])
+            #print(u'{0} ({1})'.format(item['name'], item['id']))
+            file_id = item['id']
             request = service.files().get_media(fileId=file_id)
-            fh = io.BytesIO()
+            fh = io.FileIO(item['name'], 'wb')
             downloader = MediaIoBaseDownload(fh, request)
             done = False
-       	    while done is False:
-            	status, done = downloader.next_chunk()
-    	        #print "Download %d%%." % int(status.progress() * 100)
+            while done is False:
+                try:
+                    status, done = downloader.next_chunk()
+                    print('Download %d%%.' % int(status.progress() * 100))
+                except:
+                    print('NOT A VALID BINARY FILE')
+                    break
 
 
 if __name__ == '__main__':
