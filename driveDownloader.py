@@ -8,6 +8,7 @@ from googleapiclient.http import MediaIoBaseDownload
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+from apscheduler.schedulers.blocking import BlockingScheduler
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/drive']
@@ -42,7 +43,7 @@ def main():
         q="mimeType='application/vnd.google-apps.folder'", pageSize=1000, fields="nextPageToken, files(id, name)").execute()
     items = results.get('files', [])
 
-    # Initialize empty dictionary to store folder name to folder ID correspondence
+    # Initialize empty dictionary to store folder ID to folder name correspondence
     folderDict = dict()
 
     if not items:
@@ -51,9 +52,10 @@ def main():
         print('Folders:')
         for item in items:
             folderDict.update({item['id']:item['name']})
-            print("Creating folder ", str(item['name']), " from Google Drive")
+            print("Folder ", str(item['name']), " already exists...")
             dir = os.path.join("/","Users","Keith",'Desktop','FALL 2020',item['name'])
             if not os.path.exists(dir):
+                print("Creating folder ", str(item['name']), " from Google Drive")
                 os.mkdir(dir)
 
 
@@ -69,7 +71,8 @@ def main():
         currentTime = time.strftime('%Y-%m-%dT%H:%M:%SZ')
         for item in items:
             try:
-                if (item['parents'][0] in folderDict and (str(currentTime)[0:10]==str(item['modifiedTime'][0:10]))):
+                # Download Drive file if it is inside a Dirve folder and has been edited the same day or if the file is inside a Drive folder and has not already been downloaded
+                if ((item['parents'][0] in folderDict and (str(currentTime)[0:10]==str(item['modifiedTime'][0:10]))) or (item['parents'][0] in folderDict and not os.path.isfile('/Users/Keith/Desktop/Fall 2020/'+folderDict.get(item['parents'][0])+'/'+item['name'])) ):
                     print(item['modifiedTime'])
                     print("Downloading file ", str(item['name']), " from Google Drive")
                     file_id = item['id']
@@ -82,8 +85,9 @@ def main():
                             status, done = downloader.next_chunk()
                             print('Download %d%%.' % int(status.progress() * 100))
                             oldPath='/Users/Keith/Desktop/GoogleDriveDownloader/'+item['name']
-                            newPath='/Users/Keith/Desktop/Fall 2020/'+folderDict.get(item['parents'][0])+'/'
-                            os.remove(newPath+item['name'])
+                            newPath='/Users/Keith/Desktop/Fall 2020/'+folderDict.get(item['parents'][0])+'/'+item['name']
+                            if os.path.isfile(newPath):
+                                os.remove(newPath)
                             shutil.move(oldPath,newPath)
                         except:
                             continue
@@ -92,4 +96,6 @@ def main():
                 
 
 if __name__ == '__main__':
-    main()
+    scheduler = BlockingScheduler()
+    scheduler.add_job(main, 'interval', minutes=1)
+    scheduler.start()
