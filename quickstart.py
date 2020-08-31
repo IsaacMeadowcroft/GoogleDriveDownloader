@@ -57,7 +57,7 @@ def main():
                 os.mkdir(dir)
 
 
-    # Call the Drive v3 API to get drive files
+    # Call the Drive v3 API to get Drive files
     results = service.files().list(
         fields="*").execute()
     items = results.get('files', [])
